@@ -1,0 +1,121 @@
+//  常量定义
+//  LDJBConstants.m
+//  LDJsBridge
+//
+//  Created by changmin on 2020/9/14.
+//
+
+#import "LDJBConstants.h"
+
+NSString * LDJBInjectJavascript() {
+    #define __wvjb_js_func__(x) #x
+    
+    // BEGIN preprocessorJSCode
+    static NSString * preprocessorJSCode = @__wvjb_js_func__(
+    ;(function() {
+        if (window.LDJsBridge) {
+            return;
+        }
+
+        if (!window.onerror) {
+            window.onerror = function(msg, url, line) {
+                console.log("LDJsBridge: ERROR:" + msg + "@" + url + ":" + line);
+            }
+        }
+        window.LDJsBridge = {
+            registerHandler: registerHandler,
+            callHandler: callHandler,
+            _fetchQueue: _fetchQueue,
+            _handleMessageFromiOS: _handleMessageFromiOS
+        };
+
+        var sendMessageQueue = [];
+        var messageHandlers = {};
+
+        var responseCallbacks = {};
+        var uniqueId = 1;
+
+        function registerHandler(handlerName, handler) {
+            messageHandlers[handlerName] = handler;
+        }
+
+        function callHandler(handlerName, data, responseCallback) {
+            if (arguments.length == 2 && typeof data == 'function') {
+                responseCallback = data;
+                data = null;
+            }
+            _doSend({ handlerName:handlerName, data:data }, responseCallback);
+        }
+
+        function _doSend(message, responseCallback) {
+            if (responseCallback) {
+                var callbackID = 'cb_'+(uniqueId++)+'_'+new Date().getTime();
+                responseCallbacks[callbackID] = responseCallback;
+                message['callbackID'] = callbackID;
+            }
+            sendMessageQueue.push(message);
+            window.webkit.messageHandlers.iOS_Native_FlushMessageQueue.postMessage(null)
+        }
+
+        function _fetchQueue() {
+            var messageQueueString = JSON.stringify(sendMessageQueue);
+            sendMessageQueue = [];
+            return messageQueueString;
+        }
+
+        function _dispatchMessageFromiOS(messageJSON) {
+            var message = JSON.parse(messageJSON);
+            var messageHandler;
+            var responseCallback;
+
+            if (message.responseID) {
+                responseCallback = responseCallbacks[message.responseID];
+                if (!responseCallback) {
+                    return;
+                }
+                responseCallback(message.responseData);
+                delete responseCallbacks[message.responseID];
+            } else {
+                if (message.callbackID) {
+                    var callbackResponseId = message.callbackID;
+                    responseCallback = function(responseData) {
+                        _doSend({ handlerName:message.handlerName, responseID:callbackResponseId, responseData:responseData });
+                    };
+                }
+
+                var handler = messageHandlers[message.handlerName];
+                if (!handler) {
+                    console.log("LDJsBridge: WARNING: no handler for message from iOS:", message);
+                } else {
+                    handler(message.data, responseCallback);
+                }
+            }
+        }
+
+        function _handleMessageFromiOS(messageJSON) {
+            _dispatchMessageFromiOS(messageJSON);
+        }
+        
+        if(filez.initFilezCallBack){
+            filez.initFilezCallBack(filez);
+            filez.initFilezCallBack = null;
+        }
+
+    })();
+    );// END preprocessorJSCode
+    
+    #undef __wvjb_js_func__
+    return preprocessorJSCode;
+}
+
+NSString * const iOS_Native_InjectJavascript = @"iOS_Native_InjectJavascript";
+
+NSString * const iOS_Native_FlushMessageQueue = @"iOS_Native_FlushMessageQueue";
+
+NSString * const CALL_JS_FUNC_COMMENT = @"LDJsBridge._handleMessageFromiOS('%@');";
+
+NSString * const CALL_JS_FETCH_QUEUE_FUNC_COMMENT = @"LDJsBridge._fetchQueue();";
+
+NSString * const JS_HANDLER_SYNC_METHOD_PREFIX = @"ld_javascriptInterface_sync_";
+
+NSString * const JS_HANDLER_ASYNC_METHOD_PREFIX = @"ld_javascriptInterface_async_";

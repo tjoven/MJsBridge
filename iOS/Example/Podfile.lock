@@ -1,0 +1,23 @@
+PODS:
+  - Kiwi (3.0.0)
+  - LDJsBridge (1.0.0)
+
+DEPENDENCIES:
+  - Kiwi
+  - LDJsBridge (from `../../`)
+
+SPEC REPOS:
+  trunk:
+    - Kiwi
+
+EXTERNAL SOURCES:
+  LDJsBridge:
+    :path: "../../"
+
+SPEC CHECKSUMS:
+  Kiwi: fbeafef0f00e4d8f7dcb3420a4930afe70af77f7
+  LDJsBridge: bc4a1bc7f157214fd94fa34e3e7545110b5e126e
+
+PODFILE CHECKSUM: d919fdeeb8907ae418dc2c05a91016b280167351
+
+COCOAPODS: 1.9.1
